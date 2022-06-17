@@ -1,0 +1,166 @@
+ 
+#include "ESP8266WiFi.h"//libreria para comunicación WiFi
+#include <SPI.h> 
+const char* ssid = "INFINITUM0EAE_2.4";
+const char* password = "K2fPx3SdHY";
+
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+IPAddress ip(192,168,1,50);
+String readString;   
+
+int vel = 255; // Velocidad el maximo es 255
+int retardo = 100; // tiempo entre cambio de giros
+int incremento = 10; // Pasos para incremento de velocidad
+WiFiServer server(80);
+ 
+void setup() {
+   
+  pinMode(D1,OUTPUT); // Motor derecha frente
+  pinMode(D2,OUTPUT); // Motor izquierdo frente
+  pinMode(D3,OUTPUT); // Motor derecha reversa  
+  pinMode(D4,OUTPUT); // Motor izquierdo reversa  
+  pinMode(D8,OUTPUT); // LEDs frontales  
+  
+  
+  Serial.begin(74880);
+  delay(10);
+
+   // Conectarse a la red WiFi
+  Serial.println();
+  Serial.println();
+  Serial.print("Conectando a ");
+  Serial.println(ssid);
+ 
+  WiFi.begin(ssid, password);
+ 
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(2000);
+    Serial.print("conectando ");
+  }
+  Serial.println("");
+  Serial.println("WiFi conectado");
+ 
+   // Iniciar el servidor
+  server.begin();
+  Serial.println("servidor iniciado");
+ 
+ // Imprimir la dirección IP
+  Serial.print("Use esta URL para conectarse: ");
+  Serial.print("http://");
+  Serial.print(WiFi.localIP());
+  Serial.println("/");
+ 
+}
+ 
+void loop() {
+  // Comprueba si cliente se ha conectado
+  WiFiClient client = server.available();
+  if (!client) {
+    return;
+  }
+ 
+ // Espera hasta que el cliente envíe algunos datos.
+  Serial.println("nuevo clinte");
+  while(!client.available()){
+    delay(1);
+  }
+ 
+  // Lee la primera línea requerida
+  String request = client.readStringUntil('\r');
+  Serial.println(request);
+  client.flush();// Coincide con la solicitud
+ 
+  int value = LOW;
+  if (request.indexOf("/adelante") != -1)  { // Boton avanza hacia adelente
+    digitalWrite(D1,0);
+    digitalWrite(D2,0);
+    delay (retardo);
+    digitalWrite(D3,vel);
+    digitalWrite(D4,vel);
+    value = HIGH;
+  }
+  if (request.indexOf("/stop") != -1)  { // Boton parar auto
+    digitalWrite(D1,0);
+    digitalWrite(D2,0);   
+    digitalWrite(D3,0);
+    digitalWrite(D4,0);
+    value = LOW;
+  }
+
+ if (request.indexOf("/atras") != -1)  { // Boton reverza
+    digitalWrite(D1,vel);
+    digitalWrite(D2,vel);
+    delay (retardo);
+    digitalWrite(D3,0);
+    digitalWrite(D4,0);
+    value = HIGH;
+  }
+  
+if (request.indexOf("/izquierda") != -1)  { // Boton giro a la izquierda
+    digitalWrite(D1,vel);
+    digitalWrite(D2,0);    
+    digitalWrite(D3,0);
+    digitalWrite(D4,vel);
+    value = HIGH;
+  }
+
+if (request.indexOf("/derecha") != -1)  { // Boton giro a la derecha
+    digitalWrite(D1,0);
+    digitalWrite(D2,vel);   
+    digitalWrite(D3,vel);
+    digitalWrite(D4,0);  
+     value = HIGH;
+  }
+if (request.indexOf("/luzon") != -1)  { // Boton encender LEDs frontales
+    digitalWrite(D8,HIGH);
+    
+  }
+  if (request.indexOf("/luzoff") != -1)  {// Boton apagar LEDs frontales
+    digitalWrite(D8,LOW);
+    
+  }
+  
+ // Establece motor de acuerdo a la solicitud
+ // devuelve la respuesta
+ 
+  // Return the response
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/html");
+  client.println(""); 
+  client.println("<!DOCTYPE HTML>");
+  client.println("<html>");
+ 
+  client.print("el carro ahora esta: ");
+ 
+  if(value == HIGH) {
+    client.print("encendido");
+  } else {
+    client.print("apagado");
+  }
+  
+  client.println("<br><br>");//este codigo deja un renglon en blanco cuando se visualiza en el navegador
+  client.println(" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"); 
+  client.println(" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;");
+  client.println(" &nbsp;&nbsp;"); //este cada uno de estos codigos deja un espacio en blanco cuando se visualiza en el navegador            
+  client.println("<a href=\"/adelante\"\"><button>adelante </button></a>");
+  client.println("<br><br>");
+  client.println("<a href=\"/izquierda\"\"><button>Giro Izquierda </button></a>");
+  client.println("<a href=\"/stop\"\"><button>Paro Motor </button></a>");
+  client.println("<a href=\"/derecha\"\"><button>Giro Derecha </button></a>");
+  client.println("<br><br>");
+  client.println(" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"); 
+  client.println(" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;");
+  client.println(" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;");   
+  client.println("<a href=\"/atras\"\"><button>atras </button></a>");
+  client.println("<br><br>"); 
+  client.println("<a href=\"/luzon\"\"><button>encender LEDs  </button></a>");
+  client.println(" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"); 
+  client.println(" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;");         
+  client.println("<a href=\"/luzoff\"\"><button>apagar LEDs </button></a>");  
+  client.println("</html>");
+ 
+  delay(1);
+  Serial.println("Cliente desconectado");
+  Serial.println("");
+ 
+}
